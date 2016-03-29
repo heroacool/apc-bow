@@ -11,6 +11,7 @@
 #include <memory>
 #include <functional>
 
+
 #if defined WIN32 || defined _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -63,7 +64,7 @@ int main(int argc, char** argv)
     Mat descriptors;
     Mat current_descriptors;
 
-    Ptr<FeatureDetector> feature_descriptor = SURF::create();
+    Ptr<FeatureDetector> feature_descriptor = SIFT::create();
     vector<cv::KeyPoint> keypoints;
 
     Ptr<DescriptorMatcher> descMatcher = DescriptorMatcher::create("FlannBased");
@@ -100,11 +101,84 @@ int main(int argc, char** argv)
     cout << " train time = " << t2 - t1 << "ms " <<endl;
 
     bowExtractor->setVocabulary(vocabulary);
+    if(bowExtractor->getVocabulary().empty()){
+        cout <<"the vocabulary is empty " <<endl;
+        exit(-1);
+    }
 
-    Mat trainMat, trainLabel;
+    Mat_<float> trainMat;
+    Mat_<int>trainLabel;
 
     string svm_xml_file = "../model/svm.xml.gz";
 
+    Ptr<SVM> svm;
+    FileStorage fs(svm_xml_file, FileStorage::READ);
+    if(fs.isOpened()){
+        cout << "load svm xml file" <<endl;
+        svm = StatModel::load<SVM>(svm_xml_file);
+    }else{
+        cout << "train svm" <<endl;
+
+        for(int i=0; i<class_files.size(); i++){
+            for(int j=0; j<class_files[i].size(); j++){
+                Mat src = imread(class_files[i][j]);
+                cout << "name = " << class_files[i][j] <<endl;
+                imshow("src", src);
+                feature_descriptor->detect(src, keypoints);
+
+                bowExtractor->compute(src, keypoints, current_descriptors);
+                trainMat.push_back(current_descriptors);
+
+                Mat_<int> t(1,1);
+                t.at<int>(0,0) = i;
+                trainLabel.push_back(t);
+
+//                imshow("current_descriptors", current_descriptors);
+//                cout << current_descriptors.size() <<endl;
+//                waitKey(0);
+
+            }
+        }
+        cout << trainLabel <<endl;
+        svm = SVM::create();
+        svm->setType(SVM::C_SVC);
+        svm->setKernel(SVM::RBF);
+        svm->setDegree(1);
+        svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 100, 1e-6));
+
+        svm->trainAuto(TrainData::create(trainMat, ROW_SAMPLE, trainLabel), 10);
+        svm->save(svm_xml_file);
+        cout << "saved xml file" <<endl;
+    }
+
+
+    for(int i=0; i<class_files.size(); i++){
+        for(int j=0; j<class_files[i].size(); j++){
+            Mat src = imread(class_files[i][j]);
+            cout << "name = " << class_files[i][j] <<endl;
+            imshow("src", src);
+            feature_descriptor->detect(src, keypoints);
+
+            bowExtractor->compute(src, keypoints, current_descriptors);
+            double sum = 0;
+            for(int k=0; k<current_descriptors.cols; k++){
+                sum += current_descriptors.at<float>(0,k);
+            }
+
+            cout << "sum = " << sum << endl;
+
+            float response = svm->predict(current_descriptors);
+            cout << "response = " << response <<endl;
+            cout <<"class = " << class_names[response] <<endl;
+
+            string current_name = class_names[response];
+
+            putText(src, current_name, Point(10, 50), CV_FONT_NORMAL, 0.5, CV_RGB(255,0,0));
+            imshow("src", src);
+            waitKey(0);
+
+        }
+    }
 
 
     return 0;
