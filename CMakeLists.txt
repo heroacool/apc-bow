@@ -5,7 +5,8 @@ project(apc-bow)
 find_package( OpenCV 3 REQUIRED )
 
 set(SRC_CPP
-    src/utils.cpp)
+    src/utils.cpp
+    src/CObject.cpp)
 
 
 INCLUDE_DIRECTORIES(src)
