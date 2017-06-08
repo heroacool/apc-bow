@@ -1,17 +1,17 @@
-###this repo is recognization module for apc(amazon picking challenge)
+### this repo is recognization module for apc(amazon picking challenge)
 
-##blog<http://blog.csdn.net/heroacool/article/details/50968109>
+## blog<http://blog.csdn.net/heroacool/article/details/50968109>
 
-###Algorithm
+### Algorithm
 Bag of words
 
 
-###require
+### require
 opencv3.0
 opencv3.0-contrib
 
 
-###install
+### install
 mkdir build
 cd build
 cmake ..
